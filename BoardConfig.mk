@@ -98,7 +98,7 @@ BOARD_HAS_NO_SELECT_BUTTON := true
 TARGET_RECOVERY_PIXEL_FORMAT := "RGBX_8888"
 BOARD_CUSTOM_BOOTIMG_MK := device/sony/nicki/custombootimg.mk
 BOARD_CUSTOM_RECOVERY_KEYMAPPING := ../../device/sony/nicki/recovery/recovery_keys.c
-BOARD_CUSTOM_GRAPHICS := ../../../device/sony/nicki/recovery/graphics.c
+BOARD_CUSTOM_GRAPHICS := ../../../device/sony/nicki/recovery/graphics/graphics.c
 
 BOARD_USES_QC_TIME_SERVICES := true
 
@@ -133,3 +133,35 @@ BOARD_SEPOLICY_UNION += \
     system.te \
     ueventd.te \
     wpa_supplicant.te
+
+# TWRP configs
+DEVICE_RESOLUTION := 480x854
+RECOVERY_GRAPHICS_USE_LINELENGTH := true
+TW_HAS_NO_RECOVERY_PARTITION := true
+TW_FLASH_FROM_STORAGE := true
+TW_EXTERNAL_STORAGE_PATH := "/external_sd"
+TW_EXTERNAL_STORAGE_MOUNT_POINT := "external_sd"
+TW_DEFAULT_EXTERNAL_STORAGE := true
+TW_INCLUDE_JB_CRYPTO := true
+TW_CRYPTO_FS_TYPE := "ext4"
+TW_CRYPTO_REAL_BLKDEV := "/dev/block/platform/msm_sdcc.1/by-name/userdata"
+TW_CRYPTO_MNT_POINT := "/data"
+TW_CRYPTO_FS_OPTIONS := "nosuid,nodev,barrier=1,noauto_da_alloc,discard"
+TW_CRYPTO_FS_FLAGS := "0x00000406"
+TW_CRYPTO_KEY_LOC := "footer"
+TW_INCLUDE_FUSE_EXFAT := true
+TW_BOARD_CUSTOM_GRAPHICS := ../../../device/sony/nicki/recovery/graphics/twrpgraphics.c
+TW_BRIGHTNESS_PATH := /sys/class/leds/lcd-backlight/brightness
+TW_MAX_BRIGHTNESS := 255
+TW_NO_USB_STORAGE := true
+
+# MultiROM
+MR_DPI := hdpi
+MR_KEXEC_MEM_MIN := 0x85000000
+MR_KEXEC_MEM_MAX := 0x87ffffff
+MR_INIT_DEVICES := device/sony/nicki/multirom/init_devices.c
+MR_PRODUCT_DEVICE := nicki
+MR_SDCARD_BLOCK_DEV := mmcblk1
+MR_SDCARD_PART_PREFIX := mmcblk1p
+MR_USBDISK_BLOCK_DEV := sda
+MR_USBDISK_PART_PREFIX := sda

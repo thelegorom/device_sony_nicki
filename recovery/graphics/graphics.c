@@ -51,12 +51,6 @@
 
 #define NUM_BUFFERS 2
 
-/*
- * For this device, the framebuffer start needs to be aligned to a 4096-byte
- * boundary.
- */
-#define FB_MEM_ALIGN 0x1000
-
 typedef struct {
     GGLSurface texture;
     unsigned cwidth;
@@ -71,9 +65,6 @@ static GGLSurface gr_framebuffer[NUM_BUFFERS];
 static GGLSurface gr_mem_surface;
 static unsigned gr_active_fb = 0;
 static unsigned double_buffering = 0;
-static int overscan_percent = OVERSCAN_PERCENT;
-static int overscan_offset_x = 0;
-static int overscan_offset_y = 0;
 
 static int gr_fb_fd = -1;
 static int gr_vt_fd = -1;
@@ -99,6 +90,12 @@ static int get_framebuffer(GGLSurface *fb)
     }
 
     vi.bits_per_pixel = PIXEL_SIZE * 8;
+	if (ioctl(fd, FBIOPUT_VSCREENINFO, &vi) < 0) {
+        perror("failed to put fb0 info");
+        close(fd);
+        return -1;
+    } else fprintf(stderr,"Successfuly set bpp vi to %d\n", vi.bits_per_pixel);
+	
     if (PIXEL_FORMAT == GGL_PIXEL_FORMAT_BGRA_8888) {
       vi.red.offset     = 8;
       vi.red.length     = 8;
@@ -146,9 +143,6 @@ static int get_framebuffer(GGLSurface *fb)
         return -1;
     }
 
-    overscan_offset_x = vi.xres * overscan_percent / 100;
-    overscan_offset_y = vi.yres * overscan_percent / 100;
-
     fb->version = sizeof(*fb);
     fb->width = vi.xres;
     fb->height = vi.yres;
@@ -159,14 +153,8 @@ static int get_framebuffer(GGLSurface *fb)
 
     fb++;
 
-    /* Make sure the framebuffer is aligned to the specific boundary */
-    unsigned fb_size = vi.yres * fi.line_length;
-    if (fb_size % FB_MEM_ALIGN != 0) {
-        fb_size += FB_MEM_ALIGN - fb_size % FB_MEM_ALIGN;
-    }
-
     /* check if we can use double buffering */
-    if (fb_size * 2 > fi.smem_len)
+    if (vi.yres * fi.line_length * 2 > fi.smem_len)
         return fd;
 
     double_buffering = 1;
@@ -175,7 +163,7 @@ static int get_framebuffer(GGLSurface *fb)
     fb->width = vi.xres;
     fb->height = vi.yres;
     fb->stride = fi.line_length/PIXEL_SIZE;
-    fb->data = (void*) (((unsigned) bits) + fb_size);
+    fb->data = (void*) (((unsigned) bits) + vi.yres * fi.line_length);
     fb->format = PIXEL_FORMAT;
     memset(fb->data, 0, vi.yres * fi.line_length);
 
@@ -247,9 +235,6 @@ int gr_text(int x, int y, const char *s, int bold)
     GRFont *font = gr_font;
     unsigned off;
 
-    x += overscan_offset_x;
-    y += overscan_offset_y;
-
     y -= font->ascent;
 
     gl->bindTexture(gl, &font->texture);
@@ -276,9 +261,6 @@ void gr_texticon(int x, int y, gr_surface icon) {
     }
     GGLContext* gl = gr_context;
 
-    x += overscan_offset_x;
-    y += overscan_offset_y;
-
     gl->bindTexture(gl, (GGLSurface*) icon);
     gl->texEnvi(gl, GGL_TEXTURE_ENV, GGL_TEXTURE_ENV_MODE, GGL_REPLACE);
     gl->texGeni(gl, GGL_S, GGL_TEXTURE_GEN_MODE, GGL_ONE_TO_ONE);
@@ -292,17 +274,11 @@ void gr_texticon(int x, int y, gr_surface icon) {
     gl->recti(gl, x, y, x+gr_get_width(icon), y+gr_get_height(icon));
 }
 
-void gr_fill(int x1, int y1, int x2, int y2)
+void gr_fill(int x, int y, int w, int h)
 {
-    x1 += overscan_offset_x;
-    y1 += overscan_offset_y;
-
-    x2 += overscan_offset_x;
-    y2 += overscan_offset_y;
-
     GGLContext *gl = gr_context;
     gl->disable(gl, GGL_TEXTURE_2D);
-    gl->recti(gl, x1, y1, x2, y2);
+    gl->recti(gl, x, y, w, h);
 }
 
 void gr_blit(gr_surface source, int sx, int sy, int w, int h, int dx, int dy) {
@@ -310,9 +286,6 @@ void gr_blit(gr_surface source, int sx, int sy, int w, int h, int dx, int dy) {
         return;
     }
     GGLContext *gl = gr_context;
-
-    dx += overscan_offset_x;
-    dy += overscan_offset_y;
 
     gl->bindTexture(gl, (GGLSurface*) source);
     gl->texEnvi(gl, GGL_TEXTURE_ENV, GGL_TEXTURE_ENV_MODE, GGL_REPLACE);
@@ -423,12 +396,12 @@ void gr_exit(void)
 
 int gr_fb_width(void)
 {
-    return gr_framebuffer[0].width - 2*overscan_offset_x;
+    return gr_framebuffer[0].width;
 }
 
 int gr_fb_height(void)
 {
-    return gr_framebuffer[0].height - 2*overscan_offset_y;
+    return gr_framebuffer[0].height;
 }
 
 gr_pixel *gr_fb_data(void)
@@ -438,13 +411,9 @@ gr_pixel *gr_fb_data(void)
 
 void gr_fb_blank(bool blank)
 {
-    int fd;
+    int ret;
 
-    fd = open("/sys/class/leds/lcd-backlight/brightness", O_RDWR);
-    if (fd < 0) {
-        perror("cannot open LCD backlight");
-        return;
-    }
-    write(fd, blank ? "000": "120", 3);
-    close(fd);
+    ret = ioctl(gr_fb_fd, FBIOBLANK, blank ? FB_BLANK_POWERDOWN : FB_BLANK_UNBLANK);
+    if (ret < 0)
+        perror("ioctl(): blank");
 }
