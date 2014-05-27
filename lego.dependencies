@@ -1,0 +1,26 @@
+[
+  {
+    "remote": "cm",
+    "repository": "android_device_sony_common",
+    "target_path": "device/sony/common",
+    "revision": "cm-11.0"
+  },
+  {
+    "remote": "cm",
+    "repository": "android_device_sony_qcom-common",
+    "target_path": "device/sony/qcom-common",
+    "revision": "cm-11.0"
+  },
+  {
+    "remote": "gh",
+    "repository": "nolinuxnoparty/android_Kernel_sony_msm8x27",
+    "target_path": "kernel/sony/msm8x27",
+    "revision": "cm-11.0"
+  },
+  {
+    "remote": "tm",
+    "repository": "proprietary_vendor_sony",
+    "target_path": "vendor/sony",
+    "revision": "cm-11.0"
+  }
+]
